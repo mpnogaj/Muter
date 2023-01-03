@@ -1,0 +1,27 @@
+{
+  "name": "discordjs-v14-template-ts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "cls && node build/index.js",
+    "build": "tsc --build",
+	"clear": "tsc --build --clean",
+	"run": "npm run clear && npm run build && npm run start"
+  },
+  "keywords": [],
+  "author": "mpnogaj",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/rest": "^1.1.0",
+    "@types/node": "^18.7.14",
+    "@typescript-eslint/eslint-plugin": "^5.48.0",
+    "chalk": "^4.1.2",
+    "discord.js": "14.3.0",
+    "dotenv": "^16.0.2",
+    "eslint-plugin-prettier": "^4.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.2"
+  }
+}
