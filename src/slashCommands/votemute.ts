@@ -5,34 +5,86 @@ import {
 	GuildMember,
 	ActionRowBuilder,
 	ButtonBuilder,
-	ButtonStyle
+	ButtonStyle,
+	EmbedBuilder,
+	APIEmbedField,
+	bold
 } from 'discord.js';
-import { commonVoiceChannel } from '../functions';
-import { SlashCommand } from '../types';
+import {
+	commonVoiceChannel,
+	extractNamesFromMemberSet,
+	formatDate,
+	getDateFromUnixTimestamp
+} from '../functions';
+import { SlashCommand, VoteMute } from '../types';
 import VoteManager from '../voteManager';
 
-const voteDuration = 5;
+const voteDuration = 5 * 60;
+
+const createEmbed = (vote: VoteMute, status: string, mute: boolean) => {
+	const votedYesArr = extractNamesFromMemberSet(vote.votedYes);
+	const votedNoArr = extractNamesFromMemberSet(vote.votedNo);
+	const votedYesUsersContent = votedYesArr.length == 0 ? bold('No votes') : votedYesArr.join('\n');
+	const votedNoUsersContent = votedNoArr.length == 0 ? bold('No votes') : votedNoArr.join('\n');
+	const fields: APIEmbedField[] = [
+		{ name: 'Vote status:', value: status, inline: true },
+		{
+			name: 'Voted yes',
+			value: votedYesUsersContent,
+			inline: false
+		},
+		{
+			name: 'Voted no',
+			value: votedNoUsersContent,
+			inline: false
+		}
+	];
+
+	const endDate = getDateFromUnixTimestamp(vote.expirationTime);
+
+	const embed = new EmbedBuilder()
+		.setTitle(
+			`Vote ${!mute ? 'un' : ''}mute ${vote.user.displayName} - ${vote.user.user.username}#${
+				vote.user.user.discriminator
+			}`
+		)
+		.setDescription(`Vote count/required: ${vote.currentVotes}/${vote.requiredVotes}`)
+		.addFields(fields)
+		.setFooter({ text: `Vote ends at: ${formatDate(endDate)}` });
+	console.log('Embed buileded');
+	return embed;
+};
 
 const command: SlashCommand = {
 	command: new SlashCommandBuilder()
 		.setName('votemute')
-		.setDescription('Start vote to mute mentioned user')
+		.setDescription('Start vote to mute/unmute mentioned user')
 		.addMentionableOption(options =>
 			options.setName('user').setDescription('User to mute').setRequired(true)
+		)
+		.addBooleanOption(option =>
+			option.setName('mute').setDescription('Mute or unmute user (default mute)').setRequired(false)
 		),
 	execute: async function (interaction: CommandInteraction<CacheType>): Promise<void> {
 		if (!interaction.isChatInputCommand()) return;
 
-		const votedUser = interaction.options.data[0].member;
+		const votedUser = interaction.options.getMentionable('user');
+
+		console.log(votedUser);
+
 		const caller = interaction.member;
-		if (!(votedUser instanceof GuildMember) || !(caller instanceof GuildMember)) return;
+		if (!(votedUser instanceof GuildMember) || !(caller instanceof GuildMember)) {
+			interaction.reply({ content: 'You need to mention server user!', ephemeral: true });
+			return;
+		}
 
 		const channel = await commonVoiceChannel(caller, votedUser);
-
 		if (channel == undefined) {
 			interaction.reply('You need to be in the same voice channel to mute this user');
 			return;
 		}
+
+		const mute = interaction.options.getBoolean('mute') ?? true;
 
 		const yesButton = new ButtonBuilder()
 			.setCustomId('yesBtn')
@@ -44,27 +96,67 @@ const command: SlashCommand = {
 			.setStyle(ButtonStyle.Danger);
 
 		const endTime = Date.now() / 1000 + voteDuration;
+		const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(yesButton, noButton);
+
+		const eligibleIds = Array.from(channel.members.values())
+			.map(x => x.id)
+			.filter(id => id != caller.id && id != votedUser.id);
+
+		const vote = {
+			voteId: '',
+			currentVotes: 1,
+			requiredVotes: Math.ceil(eligibleIds.length / 2.0) + 1,
+			user: votedUser,
+			expirationTime: endTime,
+			eligibleToVote: new Set(eligibleIds),
+			votedYes: new Set<GuildMember>([caller]),
+			votedNo:
+				caller.id == votedUser.id ? new Set<GuildMember>() : new Set<GuildMember>([votedUser]),
+			onVoteEnded: function (reason: string): void {
+				console.log('Vote ended!');
+				console.log(reason);
+				interaction.editReply({
+					embeds: [createEmbed(this, `Vote ended! ${reason}`, mute)],
+					components: []
+				});
+			},
+			onVoteAdded: function (user: GuildMember, votedYes: boolean): void {
+				if (!this.eligibleToVote.has(user.id)) {
+					interaction.editReply('CHUJ KURWA JEBANA MAC');
+					return;
+				}
+				this.eligibleToVote.delete(user.id);
+				if (votedYes) {
+					this.currentVotes++;
+					this.votedYes.add(user);
+				} else this.votedNo.add(user);
+
+				if (this.requiredVotes == this.currentVotes) {
+					this.user.voice.setMute(mute);
+					VoteManager.Instance.removeVote(this.voteId, 'Vote successful');
+					return;
+				}
+
+				if (this.eligibleToVote.size < this.requiredVotes - this.currentVotes) {
+					VoteManager.Instance.removeVote(this.voteId, 'Vote failed. Not enough votes');
+					return;
+				}
+
+				interaction.editReply({
+					embeds: [createEmbed(vote, 'Vote active', mute)],
+					components: [buttons]
+				});
+			}
+		};
 
 		await interaction.reply({
-			content: `Voteban ${votedUser}`,
-			components: [new ActionRowBuilder<ButtonBuilder>().addComponents(yesButton, noButton)]
+			embeds: [createEmbed(vote, 'Vote active', mute)],
+			components: [buttons]
 		});
 
 		const msg = await interaction.fetchReply();
-		VoteManager.Instance.addVote(msg.id, {
-			voteId: msg.id,
-			currentVotes: 1,
-			requiredVotes: 10,
-			user: votedUser,
-			expirationTime: endTime,
-			eligibleToVote: new Set(
-				channel.members.filter(user => user.id != votedUser.id && user.id != caller.id).values()
-			),
-			onVoteEnded: () => {
-				interaction.editReply({ content: `Voteban ${votedUser}. Vote ended!`, components: [] });
-			},
-			parentInteraction: interaction
-		});
+		vote.voteId = msg.id;
+		VoteManager.Instance.addVote(msg.id, vote);
 	}
 };
 

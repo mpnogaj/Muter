@@ -56,7 +56,22 @@ export const commonVoiceChannel = async (
 			channel.members.has(leftUser.id) &&
 			channel.members.has(rightUser.id)
 	);
-
 	if (channels.size != 1) return undefined;
 	return channels.first() as VoiceBasedChannel;
+};
+
+export const getDateInUnixTimestamp = (): number => {
+	return Math.floor(Date.now() / 1000);
+};
+
+export const getDateFromUnixTimestamp = (timestamp: number): Date => new Date(timestamp * 1000);
+
+export const formatDate = (date: Date): string => {
+	return `${date.getDate()}.${
+		date.getMonth() + 1
+	}.${date.getFullYear()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+};
+
+export const extractNamesFromMemberSet = (set: Set<GuildMember>): string[] => {
+	return Array.from(set).map(x => x.displayName);
 };

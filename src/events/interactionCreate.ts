@@ -1,4 +1,4 @@
-import { bold, GuildMember, Interaction } from 'discord.js';
+import { GuildMember, Interaction } from 'discord.js';
 import { BotEvent } from '../types';
 import VoteManager from '../voteManager';
 
@@ -58,30 +58,15 @@ const event: BotEvent = {
 				interaction.reply({ content: "Vote ended or it doesn't exists", ephemeral: true });
 				return;
 			}
-			if (!vote.eligibleToVote.has(caller)) {
+			console.log(caller.id);
+			console.log(vote.eligibleToVote);
+			console.log(vote.eligibleToVote.has(caller.id));
+			if (!vote.eligibleToVote.has(caller.id)) {
 				interaction.reply({ content: 'You are not eligible to vote', ephemeral: true });
 				return;
 			}
 
-			vote.eligibleToVote.delete(caller);
-			const votedYes = interaction.customId == 'yesBtn';
-			if (votedYes) vote.currentVotes++;
-
-			interaction.reply(
-				`${bold(caller.displayName)} voted ${bold(votedYes ? 'Yes' : 'No')}. Votemute ${bold(
-					vote.user.displayName
-				)}: ${vote.currentVotes}/${vote.requiredVotes}`
-			);
-
-			if (vote.requiredVotes == vote.currentVotes) {
-				VoteManager.Instance.removeVote(id, 'Vote successful');
-				return;
-			}
-
-			if (vote.eligibleToVote.size < vote.requiredVotes - vote.currentVotes) {
-				VoteManager.Instance.removeVote(id, 'Vote failed');
-				return;
-			}
+			vote.onVoteAdded(caller, interaction.customId == 'yesBtn');
 		}
 	}
 };

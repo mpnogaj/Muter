@@ -47,9 +47,11 @@ export interface VoteMute {
 	expirationTime: number;
 	requiredVotes: number;
 	currentVotes: number;
-	eligibleToVote: Set<GuildMember>;
-	onVoteEnded(): void;
-	parentInteraction: ChatInputCommandInteraction<CacheType>;
+	eligibleToVote: Set<Snowflake>;
+	votedYes: Set<GuildMember>;
+	votedNo: Set<GuildMember>;
+	onVoteEnded(reason: string): void;
+	onVoteAdded(user: GuildMember, votedYes: boolean): void;
 }
 
 declare global {

@@ -12,10 +12,7 @@ export default class VoteManager {
 			const currentTimestamp = Date.now() / 1000;
 			const idsToDelete: Snowflake[] = [];
 			this.votesInProgress.forEach(vote => {
-				if (vote.expirationTime <= currentTimestamp) {
-					vote.onVoteEnded();
-					idsToDelete.push(vote.voteId);
-				}
+				if (vote.expirationTime <= currentTimestamp) idsToDelete.push(vote.voteId);
 			});
 			idsToDelete.forEach(id => {
 				this.removeVote(id, 'Timed out');
@@ -25,6 +22,7 @@ export default class VoteManager {
 
 	public addVote(voteId: Snowflake, vote: VoteMute) {
 		this.votesInProgress.set(voteId, vote);
+		console.log(vote);
 	}
 
 	public getVote(voteId: Snowflake) {
@@ -34,6 +32,7 @@ export default class VoteManager {
 	public removeVote(voteId: Snowflake, reason: string) {
 		const vote = this.votesInProgress.get(voteId);
 		if (vote == undefined) return;
+		vote.onVoteEnded(reason);
 		this.votesInProgress.delete(voteId);
 	}
 
