@@ -58,9 +58,6 @@ const event: BotEvent = {
 				interaction.reply({ content: "Vote ended or it doesn't exists", ephemeral: true });
 				return;
 			}
-			console.log(caller.id);
-			console.log(vote.eligibleToVote);
-			console.log(vote.eligibleToVote.has(caller.id));
 			if (!vote.eligibleToVote.has(caller.id)) {
 				interaction.reply({ content: 'You are not eligible to vote', ephemeral: true });
 				return;

@@ -8,7 +8,8 @@ import {
 	ButtonStyle,
 	EmbedBuilder,
 	APIEmbedField,
-	bold
+	bold,
+	Guild
 } from 'discord.js';
 import {
 	commonVoiceChannel,
@@ -51,7 +52,6 @@ const createEmbed = (vote: VoteMute, status: string, mute: boolean) => {
 		.setDescription(`Vote count/required: ${vote.currentVotes}/${vote.requiredVotes}`)
 		.addFields(fields)
 		.setFooter({ text: `Vote ends at: ${formatDate(endDate)}` });
-	console.log('Embed buileded');
 	return embed;
 };
 
@@ -69,8 +69,6 @@ const command: SlashCommand = {
 		if (!interaction.isChatInputCommand()) return;
 
 		const votedUser = interaction.options.getMentionable('user');
-
-		console.log(votedUser);
 
 		const caller = interaction.member;
 		if (!(votedUser instanceof GuildMember) || !(caller instanceof GuildMember)) {
@@ -98,23 +96,21 @@ const command: SlashCommand = {
 		const endTime = Date.now() / 1000 + voteDuration;
 		const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(yesButton, noButton);
 
+		//don't filter victim.id because he may want to mute himself
 		const eligibleIds = Array.from(channel.members.values())
 			.map(x => x.id)
-			.filter(id => id != caller.id && id != votedUser.id);
+			.filter(id => id != caller.id);
 
 		const vote = {
 			voteId: '',
 			currentVotes: 1,
-			requiredVotes: Math.ceil(eligibleIds.length / 2.0) + 1,
+			requiredVotes: Math.ceil((eligibleIds.length - 1) / 2.0) + 1,
 			user: votedUser,
 			expirationTime: endTime,
 			eligibleToVote: new Set(eligibleIds),
 			votedYes: new Set<GuildMember>([caller]),
-			votedNo:
-				caller.id == votedUser.id ? new Set<GuildMember>() : new Set<GuildMember>([votedUser]),
+			votedNo: new Set<GuildMember>(),
 			onVoteEnded: function (reason: string): void {
-				console.log('Vote ended!');
-				console.log(reason);
 				interaction.editReply({
 					embeds: [createEmbed(this, `Vote ended! ${reason}`, mute)],
 					components: []
@@ -122,7 +118,7 @@ const command: SlashCommand = {
 			},
 			onVoteAdded: function (user: GuildMember, votedYes: boolean): void {
 				if (!this.eligibleToVote.has(user.id)) {
-					interaction.editReply('CHUJ KURWA JEBANA MAC');
+					interaction.editReply('Something went wrong');
 					return;
 				}
 				this.eligibleToVote.delete(user.id);

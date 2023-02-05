@@ -22,7 +22,6 @@ export default class VoteManager {
 
 	public addVote(voteId: Snowflake, vote: VoteMute) {
 		this.votesInProgress.set(voteId, vote);
-		console.log(vote);
 	}
 
 	public getVote(voteId: Snowflake) {
