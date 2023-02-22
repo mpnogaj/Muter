@@ -1,9 +1,0 @@
-
-> PotwurHuggyWuggy@1.0.0 start
-> node build/index.js
-
-Successfully loaded event interactionCreate
-Successfully loaded event ready
-Successfully loaded 4 slash command(s)
-Successfully loaded 1 command(s)
-Logged in as Potwur Huggy Wuggy#0406
