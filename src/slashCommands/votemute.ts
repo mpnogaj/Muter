@@ -8,8 +8,7 @@ import {
 	ButtonStyle,
 	EmbedBuilder,
 	APIEmbedField,
-	bold,
-	Guild
+	bold
 } from 'discord.js';
 import {
 	commonVoiceChannel,
@@ -96,19 +95,17 @@ const command: SlashCommand = {
 		const endTime = Date.now() / 1000 + voteDuration;
 		const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(yesButton, noButton);
 
-		//don't filter victim.id because he may want to mute himself
-		const eligibleIds = Array.from(channel.members.values())
-			.map(x => x.id)
-			.filter(id => id != caller.id);
+		const eligibleIds = Array.from(channel.members.values()).map(x => x.id);
 
 		const vote = {
 			voteId: '',
-			currentVotes: 1,
+			currentVotes: 0,
+			//review this
 			requiredVotes: Math.ceil((eligibleIds.length - 1) / 2.0) + 1,
 			user: votedUser,
 			expirationTime: endTime,
 			eligibleToVote: new Set(eligibleIds),
-			votedYes: new Set<GuildMember>([caller]),
+			votedYes: new Set<GuildMember>(),
 			votedNo: new Set<GuildMember>(),
 			onVoteEnded: function (reason: string): void {
 				interaction.editReply({
@@ -116,11 +113,8 @@ const command: SlashCommand = {
 					components: []
 				});
 			},
-			onVoteAdded: function (user: GuildMember, votedYes: boolean): void {
-				if (!this.eligibleToVote.has(user.id)) {
-					interaction.editReply('Something went wrong');
-					return;
-				}
+			onVoteAdded: function (user: GuildMember, votedYes: boolean): boolean {
+				if (!this.eligibleToVote.has(user.id)) return false;
 				this.eligibleToVote.delete(user.id);
 				if (votedYes) {
 					this.currentVotes++;
@@ -130,18 +124,20 @@ const command: SlashCommand = {
 				if (this.requiredVotes == this.currentVotes) {
 					this.user.voice.setMute(mute);
 					VoteManager.Instance.removeVote(this.voteId, 'Vote successful');
-					return;
+					return true;
 				}
 
 				if (this.eligibleToVote.size < this.requiredVotes - this.currentVotes) {
 					VoteManager.Instance.removeVote(this.voteId, 'Vote failed. Not enough votes');
-					return;
+					return true;
 				}
 
 				interaction.editReply({
 					embeds: [createEmbed(vote, 'Vote active', mute)],
 					components: [buttons]
 				});
+
+				return true;
 			}
 		};
 

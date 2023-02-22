@@ -51,7 +51,7 @@ export interface VoteMute {
 	votedYes: Set<GuildMember>;
 	votedNo: Set<GuildMember>;
 	onVoteEnded(reason: string): void;
-	onVoteAdded(user: GuildMember, votedYes: boolean): void;
+	onVoteAdded(user: GuildMember, votedYes: boolean): boolean;
 }
 
 declare global {

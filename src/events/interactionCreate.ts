@@ -63,7 +63,11 @@ const event: BotEvent = {
 				return;
 			}
 
-			vote.onVoteAdded(caller, interaction.customId == 'yesBtn');
+			if (vote.onVoteAdded(caller, interaction.customId == 'yesBtn')) {
+				interaction.reply({ content: 'Vote added!', ephemeral: true });
+			} else {
+				interaction.reply({ content: 'Something went wrong', ephemeral: true });
+			}
 		}
 	}
 };

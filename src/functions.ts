@@ -3,8 +3,10 @@ import {
 	GuildMember,
 	PermissionFlagsBits,
 	PermissionResolvable,
+	Snowflake,
 	TextChannel,
-	VoiceBasedChannel
+	VoiceBasedChannel,
+	VoiceChannel
 } from 'discord.js';
 
 type colorType = 'text' | 'variable' | 'error';
@@ -53,8 +55,8 @@ export const commonVoiceChannel = async (
 	const channels = (await guild.channels.fetch()).filter(
 		channel =>
 			channel.isVoiceBased() &&
-			channel.members.has(leftUser.id) &&
-			channel.members.has(rightUser.id)
+			channel.members.get(leftUser.user.id) !== undefined &&
+			channel.members.get(rightUser.user.id) !== undefined
 	);
 	if (channels.size != 1) return undefined;
 	return channels.first() as VoiceBasedChannel;
