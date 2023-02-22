@@ -8,7 +8,8 @@ import {
 	ButtonStyle,
 	EmbedBuilder,
 	APIEmbedField,
-	bold
+	bold,
+	userMention
 } from 'discord.js';
 import {
 	commonVoiceChannel,
@@ -63,25 +64,35 @@ const command: SlashCommand = {
 		)
 		.addBooleanOption(option =>
 			option.setName('mute').setDescription('Mute or unmute user (default mute)').setRequired(false)
+		)
+		.addBooleanOption(option =>
+			option
+				.setName('notify')
+				.setDescription("Notify user about ongoing vote (default don't notify)")
+				.setRequired(false)
 		),
 	execute: async function (interaction: CommandInteraction<CacheType>): Promise<void> {
 		if (!interaction.isChatInputCommand()) return;
 
-		const votedUser = interaction.options.getMentionable('user');
+		const victim = interaction.options.getMentionable('user');
 
 		const caller = interaction.member;
-		if (!(votedUser instanceof GuildMember) || !(caller instanceof GuildMember)) {
+		if (!(victim instanceof GuildMember) || !(caller instanceof GuildMember)) {
 			interaction.reply({ content: 'You need to mention server user!', ephemeral: true });
 			return;
 		}
 
-		const channel = await commonVoiceChannel(caller, votedUser);
+		const channel = await commonVoiceChannel(caller, victim);
 		if (channel == undefined) {
-			interaction.reply('You need to be in the same voice channel to mute this user');
+			interaction.reply({
+				content: 'You need to be in the same voice channel to mute this user',
+				ephemeral: true
+			});
 			return;
 		}
 
 		const mute = interaction.options.getBoolean('mute') ?? true;
+		const notifyVictim = interaction.options.getBoolean('notify') ?? false;
 
 		const yesButton = new ButtonBuilder()
 			.setCustomId('yesBtn')
@@ -102,7 +113,7 @@ const command: SlashCommand = {
 			currentVotes: 0,
 			//review this
 			requiredVotes: Math.ceil((eligibleIds.length - 1) / 2.0) + 1,
-			user: votedUser,
+			user: victim,
 			expirationTime: endTime,
 			eligibleToVote: new Set(eligibleIds),
 			votedYes: new Set<GuildMember>(),
@@ -143,7 +154,8 @@ const command: SlashCommand = {
 
 		await interaction.reply({
 			embeds: [createEmbed(vote, 'Vote active', mute)],
-			components: [buttons]
+			components: [buttons],
+			content: notifyVictim ? userMention(victim.id) : ''
 		});
 
 		const msg = await interaction.fetchReply();
